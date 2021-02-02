@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+
+    
+
+    
+
+    <title>twisted中使用autobahn提供websocket服务 | yuanxb blog</title>
+    <meta name="author" content="yuanxb" />
+    <meta name="keywords" content="" />
+    <meta name="description" content="Twisted网络框架没有提供关于websocket的功能，在现有的轮子中只有 autobahn-python 中提供了简单易用的基于twisted的websocket库.如下:1234567891011121314151617181920212223242526from autobahn.twisted.websocket import WebSocketServerProtocol, listenWS, WebSocketServerFactoryfrom twisted.internet " />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+
+    
+    <link rel="alternate" href="/atom.xml" title="yuanxb blog" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/images/favicon.ico">
+    
+
+    <style type="text/css">
+    @font-face {
+        font-family: 'icomoon';
+        src: url("/fonts/icomoon.eot?q628ml");
+        src: url("/fonts/icomoon.eot?q628ml#iefix") format('embedded-opentype'),
+             url("/fonts/icomoon.ttf?q628ml") format('truetype'),
+             url("/fonts/icomoon.woff?q628ml") format('woff'),
+             url("/fonts/icomoon.svg?q628ml#icomoon") format('svg');
+        font-weight: normal;
+        font-style: normal;
+    }
+    </style>
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    <!--[if lt IE 9]><style type="text/css">.nav-inner {top:0;}.author-meta {position:static;top:0;}.search-form {height:36px;}</style><script type="text/javascript" src="https://unpkg.com/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+<meta name="generator" content="Hexo 5.3.0"></head>
+<body>
+
+    <main class="app">
+        <header id="header" class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">yuanxb blog</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/back-end">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/atom.xml">
+                <span class="nav-text">订阅</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="https://github-yxb.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%98%93%E8%B8%A9%E5%9D%91%E7%9A%84%E5%9C%B0%E6%96%B9"><span class="toc-number">1.</span> <span class="toc-text">易踩坑的地方</span></a></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content">
+            <div id="wrapper" class="wrapper" style="max-width: 800px">
+                <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            twisted中使用autobahn提供websocket服务
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="https://github-yxb.github.io/2019/06/26/autobahn_websocket/index.html">
+    
+    <i class="icon-calendar vm"></i>
+    
+    <time class="vm" datetime="2019-06-26T12:12:29.000Z" itemprop="datePublished">2019-06-26</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag vm"></i>
+    <a class="article-tag-link" href="/tags/twisted-websocket-autobahn/" rel="tag">twisted, websocket, autobahn</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <p>Twisted网络框架没有提供关于websocket的功能，在现有的轮子中只有 autobahn-python 中提供了简单易用的基于twisted的websocket库.<br>如下:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">from autobahn.twisted.websocket import WebSocketServerProtocol, listenWS, WebSocketServerFactory</span><br><span class="line">from twisted.internet import reactor</span><br><span class="line"></span><br><span class="line">class WebsocketClient(WebSocketServerProtocol, TimeoutMixin):</span><br><span class="line">    def onOpen(self):</span><br><span class="line">        &quot;&quot;&quot;连接建立处理</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        pass</span><br><span class="line"></span><br><span class="line">    def onMessage(self, payload, isBinary):</span><br><span class="line">        self.sendMessage(b&#39;hello&#39;)</span><br><span class="line"></span><br><span class="line">    def onClose(self, wasClean, code, reason):</span><br><span class="line">        pass</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">class WebSocketFactory(WebSocketServerFactory):</span><br><span class="line">    protocol &#x3D; WebsocketClient</span><br><span class="line"></span><br><span class="line">    def __init__(self, *args, **kwargs):</span><br><span class="line">        self.isSecure &#x3D; False</span><br><span class="line">        super().__init__(*args, **kwargs)</span><br><span class="line"></span><br><span class="line">reactor.listenTCP(  # pylint: disable&#x3D;no-member</span><br><span class="line">    2312, WebSocketFactory()</span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+<h3 id="易踩坑的地方"><a href="#易踩坑的地方" class="headerlink" title="易踩坑的地方"></a>易踩坑的地方</h3><a id="more"></a>
+<p>WebSocketServerFactory 类除了上面的使用方式外，也可使用官方demo中的方式:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ws &#x3D; WebSocketServerFactory(&quot;0.0.0.0:2312&quot;)</span><br><span class="line">listenWS(ws)</span><br></pre></td></tr></table></figure>
+<p>基于这种方式的监听在使用nginx做反向代理时会有连接失败的问题<br>autobahn会报下面的异常:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">missing port in HTTP Host header and server runs on non-standard port </span><br></pre></td></tr></table></figure>
+<p>下面是使用nginx做反代的配置:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">location ^~ &#x2F;ws &#123;</span><br><span class="line">            proxy_http_version 1.1;</span><br><span class="line">            proxy_set_header Upgrade $http_upgrade;</span><br><span class="line">            proxy_set_header Connection &quot;upgrade&quot;;</span><br><span class="line">            proxy_set_header X-Real-IP $remote_addr;</span><br><span class="line">            proxy_set_header X-Scheme $scheme;</span><br><span class="line">            proxy_set_header host $host;</span><br><span class="line">            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;</span><br><span class="line">            proxy_pass http:&#x2F;&#x2F;websocket;</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
+<p>原因是由于使用了地址初始化WebSocketServerFactory后，externalPort参数会被设置,当通过nginx反代建立新连接后，autobahn会做一些检查:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">https:&#x2F;&#x2F;github.com&#x2F;crossbario&#x2F;autobahn-python&#x2F;blob&#x2F;a771b54bc93f4d0cc273162dc737f2c528a92fdd&#x2F;autobahn&#x2F;websocket&#x2F;protocol.py#L2508</span><br></pre></td></tr></table></figure>
+<p>不知道检查的目的是什么，网上有一个说明，但也没有解释清楚:<br>If the URL is provided, this (and the externalPort) parameter will lead to some checking Autobahn does: the HTTP/GET request host header matches the host/port the server (Autobahn) runs on. With a reverse proxy in front, that’ll be no longer be as simple, since the proxy usually listens on different port than Autobahn, but the request still contains the external port. If you remove URL parameter, Autobahn will simply skip those checks.</p>
+
+        
+    </section>
+</article>
+
+
+
+
+<a id="pageprev" href="/2019/10/30/pybdind11/" class="article-prev" title="使用pybind11导出c++接口"><i class="icon-arrow-left"></i></a>
+
+
+
+<div class="comments">
+    <div id="comments"></div>
+    <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+    <script>
+    new Gitalk({
+        clientID: "7fbe80427f54741e289f",
+        clientSecret: "f34ed5fd92e54c9000bd37ba951948cb939deff5",
+        repo: "github-yxb.github.io",
+        owner: "YuanXiaobo",
+        admin: ["YuanXiaobo"],
+        id: "d803b3041520e7819191cdb84da1acdf",
+        distractionFreeMode: true,
+        title: "twisted中使用autobahn提供websocket服务",
+        body: "https://github-yxb.github.io/2019/06/26/autobahn_websocket/",
+        labels: ["twisted, websocket, autobahn"]
+    }).render('comments');
+    </script>
+</div>
+
+
+
+            </div>
+        </div>
+        <footer class="footer">
+    Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>, Theme by <a href="https://github.com/sanonz/hexo-theme-concise" target="_blank">Concise</a>
+
+    
+    <script>
+        var _hmt = _hmt || [];
+        (function () {
+            var hm = document.createElement("script");
+            hm.src = "https://hm.baidu.com/hm.js?bdf4ffe8348927e73c117fd0b3a5dc51";
+            var s = document.getElementsByTagName("script")[0];
+            s.parentNode.insertBefore(hm, s);
+        })();
+    </script>
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://unpkg.com/jquery@1.9.1/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle('normal', slideDone);
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp('normal', slideDone);
+            }, 3000);
+        }
+
+        function slideDone() {
+            if (nodes.navInner.css('display') !== 'none') {
+                nodes.navInner.css('display', '');
+            }
+        }
+
+        $(window).on('resize', function() {
+            if ($(this).width() > 960) {
+                nodes.navInner.css('display', '');
+            }
+        });
+    });
+    </script>
+    
+        
+<script src="/js/scrollspy.min.js"></script>
+
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+
+        $(window).on('resize', function() {
+            var hw = $('#header').width();
+            var ww = $('#wrapper').width();
+            var space = ($(this).width() - hw - ww) / 2 / 2;
+
+            var pageprev = $('#pageprev');
+            var pagenext = $('#pagenext');
+            var avg = (pageprev.width() + pagenext.width()) / 2
+
+            if(space > avg) {
+                var len = space - avg / 2;
+                var styles = {position: 'fixed', top: '50%', marginTop: - (pageprev.width() + pagenext.width()) / 4}
+                pageprev.css($.extend({left: hw + len}, styles));
+                pagenext.css($.extend({right: len}, styles));
+            } else {
+                pageprev.removeAttr('style');
+                pagenext.removeAttr('style');
+            }
+        }).trigger('resize');
+        </script>
+    
+
+</body>
+</html>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+
+    
+
+    
+
+    <title>kbengine登录流程之存储登录记录 | yuanxb blog</title>
+    <meta name="author" content="yuanxb" />
+    <meta name="keywords" content="" />
+    <meta name="description" content="kbengine的登录流程:客户端调用引擎的login接口,接口有(username, passwd, datas)三个参数.其中datas为二进制流，可自定义内容.可将设备码，渠道号等信息放到这个字段中.引擎在处理登陆时将datas保存1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950void Loginapp::login(Network::Channel* p" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+
+    
+    <link rel="alternate" href="/atom.xml" title="yuanxb blog" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/images/favicon.ico">
+    
+
+    <style type="text/css">
+    @font-face {
+        font-family: 'icomoon';
+        src: url("/fonts/icomoon.eot?q628ml");
+        src: url("/fonts/icomoon.eot?q628ml#iefix") format('embedded-opentype'),
+             url("/fonts/icomoon.ttf?q628ml") format('truetype'),
+             url("/fonts/icomoon.woff?q628ml") format('woff'),
+             url("/fonts/icomoon.svg?q628ml#icomoon") format('svg');
+        font-weight: normal;
+        font-style: normal;
+    }
+    </style>
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    <!--[if lt IE 9]><style type="text/css">.nav-inner {top:0;}.author-meta {position:static;top:0;}.search-form {height:36px;}</style><script type="text/javascript" src="https://unpkg.com/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+<meta name="generator" content="Hexo 5.3.0"></head>
+<body>
+
+    <main class="app">
+        <header id="header" class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">yuanxb blog</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/back-end">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/atom.xml">
+                <span class="nav-text">订阅</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="https://github-yxb.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9C%A8python%E4%B8%AD%E8%8E%B7%E5%8F%96%E7%8E%A9%E5%AE%B6%E7%9A%84%E7%99%BB%E9%99%86%E6%95%B0%E6%8D%AE%E4%BB%A5%E5%8F%8Aip%E5%9C%B0%E5%9D%80"><span class="toc-number">1.</span> <span class="toc-text">在python中获取玩家的登陆数据以及ip地址</span></a></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content">
+            <div id="wrapper" class="wrapper" style="max-width: 800px">
+                <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            kbengine登录流程之存储登录记录
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="https://github-yxb.github.io/2020/11/26/kbengine_login/index.html">
+    
+    <i class="icon-calendar vm"></i>
+    
+    <time class="vm" datetime="2020-11-26T12:12:29.000Z" itemprop="datePublished">2020-11-26</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag vm"></i>
+    <a class="article-tag-link" href="/tags/kbengine/" rel="tag">kbengine</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <p>kbengine的登录流程:<br>客户端调用引擎的login接口,接口有(username, passwd, datas)三个参数.其中datas为二进制流，可自定义内容.可将设备码，渠道号等信息放到这个字段中.</p>
+<p>引擎在处理登陆时将datas保存</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">Loginapp::login</span><span class="params">(Network::Channel* pChannel, MemoryStream&amp; s)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	AUTO_SCOPED_PROFILE(<span class="string">&quot;login&quot;</span>);</span><br><span class="line"></span><br><span class="line">	COMPONENT_CLIENT_TYPE ctype;</span><br><span class="line">	CLIENT_CTYPE tctype = UNKNOWN_CLIENT_COMPONENT_TYPE;</span><br><span class="line">	<span class="built_in">std</span>::<span class="built_in">string</span> loginName;</span><br><span class="line">	<span class="built_in">std</span>::<span class="built_in">string</span> password;</span><br><span class="line">	<span class="built_in">std</span>::<span class="built_in">string</span> datas;</span><br><span class="line">	<span class="keyword">bool</span> forceInternalLogin = <span class="literal">false</span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 前端类别</span></span><br><span class="line">	s &gt;&gt; tctype;</span><br><span class="line">	ctype = <span class="keyword">static_cast</span>&lt;COMPONENT_CLIENT_TYPE&gt;(tctype);</span><br><span class="line">	</span><br><span class="line">	<span class="comment">// 附带数据</span></span><br><span class="line">	s.readBlob(datas);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 帐号登录名</span></span><br><span class="line">	s &gt;&gt; loginName;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 密码</span></span><br><span class="line">	s &gt;&gt; password;</span><br><span class="line"></span><br><span class="line">	.........</span><br><span class="line"></span><br><span class="line">	ptinfos = <span class="keyword">new</span> PendingLoginMgr::PLInfos;</span><br><span class="line">	ptinfos-&gt;ctype = ctype;</span><br><span class="line">	ptinfos-&gt;datas = datas;</span><br><span class="line">	ptinfos-&gt;accountName = loginName;</span><br><span class="line">	ptinfos-&gt;password = password;</span><br><span class="line">	ptinfos-&gt;addr = pChannel-&gt;addr();</span><br><span class="line">	ptinfos-&gt;forceInternalLogin = forceInternalLogin;</span><br><span class="line">	pendingLoginMgr_.add(ptinfos);</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span>(ctype &lt; UNKNOWN_CLIENT_COMPONENT_TYPE || ctype &gt;= CLIENT_TYPE_END)</span><br><span class="line">		ctype = UNKNOWN_CLIENT_COMPONENT_TYPE;</span><br><span class="line"></span><br><span class="line">	INFO_MSG(fmt::format(<span class="string">&quot;Loginapp::login: new client[&#123;0&#125;], loginName=&#123;1&#125;, datas=&#123;2&#125;.\n&quot;</span>,</span><br><span class="line">		COMPONENT_CLIENT_NAME[ctype], loginName, datas));</span><br><span class="line"></span><br><span class="line">	pChannel-&gt;extra(loginName);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 向dbmgr查询用户合法性</span></span><br><span class="line">	Network::Bundle* pBundle = Network::Bundle::createPoolObject(OBJECTPOOL_POINT);</span><br><span class="line">	(*pBundle).newMessage(DbmgrInterface::onAccountLogin);</span><br><span class="line">	(*pBundle) &lt;&lt; loginName &lt;&lt; password;</span><br><span class="line">	(*pBundle).appendBlob(datas);</span><br><span class="line">	dbmgrinfos-&gt;pChannel-&gt;send(pBundle);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>随后在login中查询db返回并验证通过后，将信息打包发送至baseapp中:</p>
+<a id="more"></a>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 注册到baseapp并且获取baseapp的地址</span></span><br><span class="line">Network::Bundle* pBundle = Network::Bundle::createPoolObject(OBJECTPOOL_POINT);</span><br><span class="line">(*pBundle).newMessage(BaseappmgrInterface::registerPendingAccountToBaseapp);</span><br><span class="line"></span><br><span class="line">(*pBundle) &lt;&lt; loginName;</span><br><span class="line">(*pBundle) &lt;&lt; accountName;</span><br><span class="line">(*pBundle) &lt;&lt; password;</span><br><span class="line">(*pBundle) &lt;&lt; needCheckPassword;</span><br><span class="line">(*pBundle) &lt;&lt; dbid;</span><br><span class="line">(*pBundle) &lt;&lt; flags;</span><br><span class="line">(*pBundle) &lt;&lt; deadline;</span><br><span class="line">(*pBundle) &lt;&lt; (<span class="keyword">int</span>)infos-&gt;ctype;</span><br><span class="line">(*pBundle) &lt;&lt; infos-&gt;forceInternalLogin;</span><br><span class="line">(*pBundle).appendBlob(infos-&gt;datas);</span><br><span class="line">baseappmgrinfos-&gt;pChannel-&gt;send(pBundle);</span><br></pre></td></tr></table></figure>
+<p>在baseapp中登陆并验证成后，baseapp会创建proxy实体并将logindatas保存至proxy中:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 创建entity的客户端entityCall</span></span><br><span class="line">EntityCall* entityClientEntityCall = <span class="keyword">new</span> EntityCall(pEntity-&gt;pScriptModule(), </span><br><span class="line">    &amp;pChannel-&gt;addr(), <span class="number">0</span>, pEntity-&gt;id(), ENTITYCALL_TYPE_CLIENT);</span><br><span class="line"></span><br><span class="line">pEntity-&gt;clientEntityCall(entityClientEntityCall);</span><br><span class="line">pEntity-&gt;addr(pChannel-&gt;addr());</span><br><span class="line">pEntity-&gt;setClientType(ptinfos-&gt;ctype);</span><br><span class="line">pEntity-&gt;setLoginDatas(ptinfos-&gt;datas);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 将通道代理的关系与该entity绑定， 在后面通信中可提供身份合法性识别</span></span><br><span class="line">entityClientEntityCall-&gt;getChannel()-&gt;proxyID(pEntity-&gt;id());</span><br><span class="line">createClientProxies(pEntity, <span class="literal">true</span>);</span><br><span class="line">pEntity-&gt;onGetWitness();</span><br></pre></td></tr></table></figure>
+<h3 id="在python中获取玩家的登陆数据以及ip地址"><a href="#在python中获取玩家的登陆数据以及ip地址" class="headerlink" title="在python中获取玩家的登陆数据以及ip地址"></a>在python中获取玩家的登陆数据以及ip地址</h3><p>在proxy.cpp中引擎为python脚本导出了以下接口:</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">SCRIPT_METHOD_DECLARE_BEGIN(Proxy)</span><br><span class="line">SCRIPT_METHOD_DECLARE(<span class="string">&quot;giveClientTo&quot;</span>,					pyGiveClientTo,					METH_VARARGS,			<span class="number">0</span>)</span><br><span class="line">SCRIPT_METHOD_DECLARE(<span class="string">&quot;getClientType&quot;</span>,					pyGetClientType,				METH_VARARGS,			<span class="number">0</span>)</span><br><span class="line">SCRIPT_METHOD_DECLARE(<span class="string">&quot;getClientDatas&quot;</span>,					pyGetClientDatas,				METH_VARARGS,			<span class="number">0</span>)</span><br><span class="line">SCRIPT_METHOD_DECLARE(<span class="string">&quot;streamStringToClient&quot;</span>,			pyStreamStringToClient,			METH_VARARGS,			<span class="number">0</span>)</span><br><span class="line">SCRIPT_METHOD_DECLARE(<span class="string">&quot;streamFileToClient&quot;</span>,				pyStreamFileToClient,			METH_VARARGS,			<span class="number">0</span>)</span><br><span class="line">SCRIPT_METHOD_DECLARE(<span class="string">&quot;disconnect&quot;</span>,						pyDisconnect,					METH_VARARGS,			<span class="number">0</span>)</span><br><span class="line">SCRIPT_METHOD_DECLARE_END()</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">SCRIPT_GETSET_DECLARE_BEGIN(Proxy)</span><br><span class="line">SCRIPT_GET_DECLARE(<span class="string">&quot;roundTripTime&quot;</span>,						pyGetRoundTripTime,				<span class="number">0</span>,						<span class="number">0</span>)	</span><br><span class="line">SCRIPT_GET_DECLARE(<span class="string">&quot;timeSinceHeardFromClient&quot;</span>,			pyGetTimeSinceHeardFromClient,	<span class="number">0</span>,						<span class="number">0</span>)	</span><br><span class="line">SCRIPT_GET_DECLARE(<span class="string">&quot;clientAddr&quot;</span>,						pyClientAddr,					<span class="number">0</span>,						<span class="number">0</span>)	</span><br><span class="line">SCRIPT_GET_DECLARE(<span class="string">&quot;hasClient&quot;</span>,							pyHasClient,					<span class="number">0</span>,						<span class="number">0</span>)	</span><br><span class="line">SCRIPT_GET_DECLARE(<span class="string">&quot;clientEnabled&quot;</span>,						pyGetClientEnabled,				<span class="number">0</span>,						<span class="number">0</span>)	</span><br><span class="line">SCRIPT_GETSET_DECLARE_END()</span><br><span class="line">BASE_SCRIPT_INIT(Proxy, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>)	</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>这样在python脚本中,继承自proxy的实例就可以通过getClientDatas和clientAddr来获取需要的ip和登陆数据.<br>getClientDatas会返回一个元组,第一个数据为登陆数据:  </p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">PyObject* <span class="title">Proxy::pyGetClientDatas</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; datas1 = <span class="keyword">this</span>-&gt;getLoginDatas();</span><br><span class="line">	PyObject* pyDatas1 = PyBytes_FromStringAndSize(datas1.data(), datas1.size());</span><br><span class="line"></span><br><span class="line">	<span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">string</span>&amp; datas2 = <span class="keyword">this</span>-&gt;getCreateDatas();</span><br><span class="line">	PyObject* pyDatas2 = PyBytes_FromStringAndSize(datas2.data(), datas2.size());</span><br><span class="line"></span><br><span class="line">	PyObject* pyDatas = PyTuple_New(<span class="number">2</span>);</span><br><span class="line">	PyTuple_SetItem(pyDatas, <span class="number">0</span>, pyDatas1);</span><br><span class="line">	PyTuple_SetItem(pyDatas, <span class="number">1</span>, pyDatas2);</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> pyDatas;</span><br><span class="line">&#125;</span><br><span class="line">```  </span><br><span class="line">clientAddr被声明为proxy对象的一个元组属性，可以直接访问,(ip, port):</span><br><span class="line">```c++</span><br><span class="line"><span class="function">PyObject* <span class="title">Proxy::pyClientAddr</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123; </span><br><span class="line">	<span class="keyword">if</span> (!hasFlags(ENTITY_FLAGS_DESTROYING) &amp;&amp; isDestroyed())</span><br><span class="line">	&#123;</span><br><span class="line">		PyErr_Format(PyExc_AssertionError, <span class="string">&quot;%s: %d is destroyed!\n&quot;</span>,		</span><br><span class="line">			scriptName(), id());		</span><br><span class="line"></span><br><span class="line">		<span class="keyword">return</span> <span class="number">0</span>;																				</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	PyObject* pyobj = PyTuple_New(<span class="number">2</span>);</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span>(clientEntityCall() == <span class="literal">NULL</span> || clientEntityCall()-&gt;getChannel() == <span class="literal">NULL</span> || </span><br><span class="line">		clientEntityCall()-&gt;getChannel()-&gt;pEndPoint() == <span class="literal">NULL</span>)</span><br><span class="line">	&#123;</span><br><span class="line">		PyTuple_SetItem(pyobj, <span class="number">0</span>, PyLong_FromLong(<span class="number">0</span>));</span><br><span class="line">		PyTuple_SetItem(pyobj, <span class="number">1</span>, PyLong_FromLong(<span class="number">0</span>));</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">else</span></span><br><span class="line">	&#123;</span><br><span class="line">		<span class="keyword">const</span> Network::Address&amp; addr = clientEntityCall()-&gt;getChannel()-&gt;pEndPoint()-&gt;addr();</span><br><span class="line">		PyTuple_SetItem(pyobj, <span class="number">0</span>, PyLong_FromUnsignedLong(addr.ip));</span><br><span class="line">		PyTuple_SetItem(pyobj, <span class="number">1</span>, PyLong_FromUnsignedLong(addr.port));</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> pyobj;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在python中需要手动转换为字符串ip:</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">socket.inet_ntoa(struct.pack(<span class="string">&quot;I&quot;</span>, self.clientAddr[<span class="number">0</span>]))</span><br></pre></td></tr></table></figure>
+        
+    </section>
+</article>
+
+
+
+<a id="pagenext" href="/2019/11/29/gilabci/" class="article-next" title="使用Gitlab-CI构建Docker镜像"><i class="icon-arrow-right"></i></a>
+
+
+<a id="pageprev" href="/2020/12/13/translate_discord/" class="article-prev" title="Discord为什么从Go切换到Rust"><i class="icon-arrow-left"></i></a>
+
+
+
+<div class="comments">
+    <div id="comments"></div>
+    <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+    <script>
+    new Gitalk({
+        clientID: "7fbe80427f54741e289f",
+        clientSecret: "f34ed5fd92e54c9000bd37ba951948cb939deff5",
+        repo: "github-yxb.github.io",
+        owner: "YuanXiaobo",
+        admin: ["YuanXiaobo"],
+        id: "6ee0324a8efa3d32da2cc2c5c73eb4d8",
+        distractionFreeMode: true,
+        title: "kbengine登录流程之存储登录记录",
+        body: "https://github-yxb.github.io/2020/11/26/kbengine_login/",
+        labels: ["kbengine"]
+    }).render('comments');
+    </script>
+</div>
+
+
+
+            </div>
+        </div>
+        <footer class="footer">
+    Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>, Theme by <a href="https://github.com/sanonz/hexo-theme-concise" target="_blank">Concise</a>
+
+    
+    <script>
+        var _hmt = _hmt || [];
+        (function () {
+            var hm = document.createElement("script");
+            hm.src = "https://hm.baidu.com/hm.js?bdf4ffe8348927e73c117fd0b3a5dc51";
+            var s = document.getElementsByTagName("script")[0];
+            s.parentNode.insertBefore(hm, s);
+        })();
+    </script>
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://unpkg.com/jquery@1.9.1/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle('normal', slideDone);
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp('normal', slideDone);
+            }, 3000);
+        }
+
+        function slideDone() {
+            if (nodes.navInner.css('display') !== 'none') {
+                nodes.navInner.css('display', '');
+            }
+        }
+
+        $(window).on('resize', function() {
+            if ($(this).width() > 960) {
+                nodes.navInner.css('display', '');
+            }
+        });
+    });
+    </script>
+    
+        
+<script src="/js/scrollspy.min.js"></script>
+
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+
+        $(window).on('resize', function() {
+            var hw = $('#header').width();
+            var ww = $('#wrapper').width();
+            var space = ($(this).width() - hw - ww) / 2 / 2;
+
+            var pageprev = $('#pageprev');
+            var pagenext = $('#pagenext');
+            var avg = (pageprev.width() + pagenext.width()) / 2
+
+            if(space > avg) {
+                var len = space - avg / 2;
+                var styles = {position: 'fixed', top: '50%', marginTop: - (pageprev.width() + pagenext.width()) / 4}
+                pageprev.css($.extend({left: hw + len}, styles));
+                pagenext.css($.extend({right: len}, styles));
+            } else {
+                pageprev.removeAttr('style');
+                pagenext.removeAttr('style');
+            }
+        }).trigger('resize');
+        </script>
+    
+
+</body>
+</html>

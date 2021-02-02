@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+
+    
+
+    
+
+    <title>Discord为什么从Go切换到Rust | yuanxb blog</title>
+    <meta name="author" content="yuanxb" />
+    <meta name="keywords" content="" />
+    <meta name="description" content="Rust正在成为各个领域的一流语言.在Discord,我们已经在客户端和服务端看到了Rust的成功.例如,我们在客户端将其用于Go live的视频编码管道,在服务端用于Elixir NIFs.最近，我们通过将服务的实现从Go切换到Rust大大提高了服务性能。这篇文章描述了为什么重新实现服务很有意义，是怎么做到的，以及由此带来的性能提升.读取状态服务Discord是一家专注于产品的公司,所以我们先从一些关于产品的地方开始.我们从Go切换到Rust的服务是”读取状态”服务.它唯一的目的是跟踪你阅读了" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+
+    
+    <link rel="alternate" href="/atom.xml" title="yuanxb blog" type="application/atom+xml">
+    
+    
+    <link rel="icon" href="/images/favicon.ico">
+    
+
+    <style type="text/css">
+    @font-face {
+        font-family: 'icomoon';
+        src: url("/fonts/icomoon.eot?q628ml");
+        src: url("/fonts/icomoon.eot?q628ml#iefix") format('embedded-opentype'),
+             url("/fonts/icomoon.ttf?q628ml") format('truetype'),
+             url("/fonts/icomoon.woff?q628ml") format('woff'),
+             url("/fonts/icomoon.svg?q628ml#icomoon") format('svg');
+        font-weight: normal;
+        font-style: normal;
+    }
+    </style>
+    
+<link rel="stylesheet" href="/css/style.css">
+
+
+    <!--[if lt IE 9]><style type="text/css">.nav-inner {top:0;}.author-meta {position:static;top:0;}.search-form {height:36px;}</style><script type="text/javascript" src="https://unpkg.com/html5shiv@3.7.3/dist/html5shiv.min.js"></script><![endif]-->
+<meta name="generator" content="Hexo 5.3.0"></head>
+<body>
+
+    <main class="app">
+        <header id="header" class="header clearfix">
+    <div id="nav" class="nav">
+    <div class="nav-mobile">
+        <button id="open-panel" class="open-panel nav-mobile-item"><i class="icon-documents"></i></button>
+        <h1 class="nav-mobile-title nav-mobile-item">yuanxb blog</h1>
+        <button id="open-menus" class="open-panel nav-mobile-item"><i class="icon-library"></i></button>
+    </div>
+
+    <nav id="nav-inner" class="nav-inner">
+        
+            <a class="nav-item" href="/">
+                <span class="nav-text">首页</span>
+            </a>
+        
+            <a class="nav-item" href="/categories/back-end">
+                <span class="nav-text">后端</span>
+            </a>
+        
+            <a class="nav-item" href="/tags">
+                <span class="nav-text">标签</span>
+            </a>
+        
+            <a class="nav-item" href="/archives">
+                <span class="nav-text">归档</span>
+            </a>
+        
+            <a class="nav-item" href="/atom.xml">
+                <span class="nav-text">订阅</span>
+            </a>
+        
+            <a class="nav-item" href="/about">
+                <span class="nav-text">关于</span>
+            </a>
+        
+    </nav>
+</div>
+
+    <aside id="aside" class="aside">
+    <div id="aside-mask" class="aside-mask"></div>
+    <div id="aside-inner" class="aside-inner">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"><i class="icon-search-stroke"></i></button><input type="hidden" name="sitesearch" value="https://github-yxb.github.io"></form>
+
+        
+        
+        
+        
+
+        
+        <ol class="toc"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%AF%BB%E5%8F%96%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1"><span class="toc-number">1.</span> <span class="toc-text">读取状态服务</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E6%98%AF2%E5%88%86%E9%92%9F"><span class="toc-number">2.</span> <span class="toc-text">为什么是2分钟?</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Rust%E4%B8%AD%E7%9A%84%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86"><span class="toc-number">3.</span> <span class="toc-text">Rust中的内存管理</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%BC%82%E6%AD%A5Rust"><span class="toc-number">4.</span> <span class="toc-text">异步Rust</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%AE%9E%E7%8E%B0-%E8%B4%9F%E8%BD%BD%E6%B5%8B%E8%AF%95%E5%92%8C%E5%90%AF%E5%8A%A8"><span class="toc-number">5.</span> <span class="toc-text">实现,负载测试和启动</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%8F%90%E9%AB%98%E7%BC%93%E5%AD%98%E5%AE%B9%E9%87%8F"><span class="toc-number">6.</span> <span class="toc-text">提高缓存容量</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E4%B8%8D%E6%96%AD%E5%8F%91%E5%B1%95%E7%9A%84%E7%94%9F%E6%80%81%E7%B3%BB%E7%BB%9F"><span class="toc-number">7.</span> <span class="toc-text">不断发展的生态系统</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-number">8.</span> <span class="toc-text">结论</span></a></li></ol>
+        
+    </div>
+</aside>
+
+</header>
+
+        <div id="content" class="content">
+            <div id="wrapper" class="wrapper" style="max-width: 800px">
+                <article class="article" itemscope itemprop="blogPost">
+    
+    <header class="article-header">
+        
+        <h1 itemprop="name">
+            Discord为什么从Go切换到Rust
+        </h1>
+        
+        <div class="article-meta clearfix">
+            <a class="article-date" href="https://github-yxb.github.io/2020/12/13/translate_discord/index.html">
+    
+    <i class="icon-calendar vm"></i>
+    
+    <time class="vm" datetime="2020-12-13T12:12:29.000Z" itemprop="datePublished">2020-12-13</time>
+</a>
+
+            
+<div class="article-tag-list">
+    <i class="icon-tag vm"></i>
+    <a class="article-tag-link" href="/tags/%E7%BF%BB%E8%AF%91/" rel="tag">翻译</a>
+</div>
+
+
+        </div>
+    </header>
+    
+    <section class="article-body markdown-body">
+        
+        <p>Rust正在成为各个领域的一流语言.在Discord,我们已经在客户端和服务端看到了Rust的成功.例如,我们在客户端将其用于Go live的视频编码管道,在服务端用于Elixir NIFs.最近，我们通过将服务的实现从Go切换到Rust大大提高了服务性能。这篇文章描述了为什么重新实现服务很有意义，是怎么做到的，以及由此带来的性能提升.</p>
+<h4 id="读取状态服务"><a href="#读取状态服务" class="headerlink" title="读取状态服务"></a>读取状态服务</h4><p>Discord是一家专注于产品的公司,所以我们先从一些关于产品的地方开始.我们从Go切换到Rust的服务是”读取状态”服务.它唯一的目的是跟踪你阅读了哪些频道和消息.读取状态服务.每一次你连接到Discord,每一次发送消息和每一次阅读消息都会访问读取状态.简单点说,读取状态服务是个热点.我们想确保Discord始终都能保持快速响应，所以我们需要确保读取状态服务足够快.</p>
+<p>在Go的实现中,读取状态服务是不支持产品要求的.它大部分时间都很快,但是每隔几分钟我们就会看到巨大的延迟峰值,这不利于用户体验.调查后,我们认为延收割峰值是由于Go的核心功能:内存模型和GC.</p>
+<p>为什么Go不满足我们的性能目标<br>要解释Go为什么不满足我们的性能目标,我们首先要讨论服务的数据结构,规模,访问模式和结构.</p>
+<p>我们用于存储读取状态信息的数据结构方便的称为”读取状态”.Discord有数十亿个读取状态.每个用户每个频道都有读取状态.每个读取状态有数个计数器需要被原子刷新，并且经常被置为0.例如,有一个计数器是你在一个频道中有多少@提醒.</p>
+<p>为了得到更快的原子计数器刷新,每个读取状态服务都有一个读取状态的LRU缓存.每个缓存中有数百分个用户.每个缓存中有数千万的读取状态.每秒中有数十万个缓存要刷新.</p>
+<p>对于持久性,我们使用Cassandra数据库集群备份缓存.当缓存被逐出时,我们提交你的读取状态到数据库.同时当读取状态更新时，我们会在30秒内提交数据库.每秒有数十万个数据库写入.</p>
+<p>在下面的图片中,你可以看到Go服务的响应时间和系统cpu采样.你可能注意到,延迟和cpu峰值大约每2分钟出现一次.</p>
+<a id="more"></a>
+
+<p><img src="https://i.loli.net/2020/12/26/g2ow4tkhqYRVOBT.png" alt="image.png"></p>
+<h4 id="为什么是2分钟"><a href="#为什么是2分钟" class="headerlink" title="为什么是2分钟?"></a>为什么是2分钟?</h4><p>在Go中,当缓存被逐出时,内存不会立即释放.相反,GC每隔一段时间运行一次,查找没有引用的内存并且释放它.换句话说,内存不是在用完后立即释放,而是挂起一段时间直到垃圾回收器确定它是否真正可回收.在垃圾回收时,Go需要做很多工作才能决定哪些内存可回收,这会使程序变慢.</p>
+<p>这些延时峰值听起来确实像是垃圾收集对性能的影响,但是我们已经非常有效地编写了Go代码并且只有很少的内存申请.我们没有创造很多垃圾.</p>
+<p>在深入研究Go的源码后，我们了解到Go至少每两分钟执行一次垃圾回收.换句话说,如果垃圾回收已经两分钟没有执行,不论堆是否增长,go仍然会强制垃圾回收.</p>
+<p>我们认为我们可以调整垃圾回收的频率以阻止出现大的峰值,所以我们在服务上实现了一个端点,动态修改垃圾收集的GC百分比.<br>不幸的是,无论我们怎么修改GC百分比都没有用.怎么可能?事实证明,这是因为我们申请内存不够快,无法迫使垃圾回收执行的更频繁.</p>
+<p>我们持续挖掘,发现这些峰值之所以巨大不是因为大量的待释放内存,而是因为垃圾回收需要扫描整个LRU缓存以确定内存真的没有被引用.因此,我们认为更小的LRU缓存会更快,因为垃圾回收要扫描的垃圾更少.所以我们添加了另一个设置到服务上修改LRU缓存的大小,并且更改了架构使每个服务有多个分区LRU缓存.</p>
+<p>我们是正确的.由于LRU缓存更小,垃圾回收导致更小的峰值.</p>
+<p>不幸的是,减少LRU缓存换来更高的延迟.这是因为如果缓存更小,则用户的读取状态在缓存中的可能性越小.如果读取状态不在缓存我们就必须从数据库加载.</p>
+<p>在对不同的缓存容量进行大量负载测试后,我们找到一个似乎对的设置.不完全满足,但足够满足并且有更重要的事情做,我们让服务像这样运行很长一段时间.</p>
+<p>在那期间,我们看越来越多Rust在其它Discord团队的成功,我们集体决定,我们想要在Rust中创建新的服务所需要的框架和库.这个服务是移植到Rust的一个很好的候选者,因为它很小并且独立,但是我们也希望Rust可以修复那些延迟峰值.所以我们承担了将读取状态服务移植到Rust的任务,希望能证明Rust是一种服务语言并能改善用户体验.</p>
+<h4 id="Rust中的内存管理"><a href="#Rust中的内存管理" class="headerlink" title="Rust中的内存管理"></a>Rust中的内存管理</h4><p>Rust非常快并且内存高效:由于没有运行时或垃圾收集,它可以为性能关键服务提供动力,运行在嵌入式设备,并且很容易和其它语言集成.</p>
+<p>Rust没有垃圾收集,所以我们认为它没有像Go一样的延迟峰值.</p>
+<p>Rust使用一种相对独立的内存管理方式,它结合了内存所有权的概念.基本上,Rust会持续跟踪谁可以读写内存.它知道程序正在使用内存,并且在不需要时立即释放内存.它在编译时强制执行内存规则,使得运行时内存错误基本不可能出现.你不需要手动跟踪内存.编译器会处理它.</p>
+<p>因此,在Rust版本的读取状态服务中,当用户的读取状态从LRU缓存逐出时会立即从内存中释放.读取状态内存不会等待垃圾收集器去回收.Rust知道内存不再使用并且立即释放它.这里没有运行时程序决定它是否应该被释放.</p>
+<h4 id="异步Rust"><a href="#异步Rust" class="headerlink" title="异步Rust"></a>异步Rust</h4><p>但是Rust生态系统存在问题.在重新实现此服务时,Rust稳定版没有一个很好的异步模式.对于网络服务,异步编程是必须的.有几个社区库支持异步Rust,但是它们需要大量的要求(ceremony)并且错误提示极其晦涩(extremely obtuse).</p>
+<p>幸运的是,Rust团队正在努力使异步编程变得简单,它可以在Rust的不稳定版本中使用.</p>
+<p>Discord从不惧怕拥抱看起来有前景的新技术.例如,我们Elixir,React,React Native和scylla的较早使用者.如果一项技术看起来有前景并且能给我们带来优势,我们不介意其中的困难和不稳定性.这是我们在工程师少于50人的情况下用户迅速达到2.5亿的方法之一.</p>
+<p>在Rust nightly中采用新的异步特性是我们愿意采用新的、有前景的技术的另一个例子.作为工程团队,我们认为使用nightly Rust是值得的,我们承诺在async在得到完全稳定的支持前继续在nightly上运行.</p>
+<h4 id="实现-负载测试和启动"><a href="#实现-负载测试和启动" class="headerlink" title="实现,负载测试和启动"></a>实现,负载测试和启动</h4><p>实际上重写很简单.一开始只是粗略的翻译,然后我们将其缩小到合理的范围.例如,Rust有很棒的类型系统,它对泛型提供了广泛的支持,所以我们可以去除仅仅因为缺少泛型而存在的Go代码.而且,Rust的内存模型可以跨线程推断内存安全性,因此我们可以放弃Go中所需的一些手动跨goroutine内存保护.</p>
+<p>当我们开始负载测时结果让我们很满意.Rust版本的延迟和Go的一样好,并且没有延迟峰值.</p>
+<p>值得注意的是,编写Rust版本时我们对优化只投入了非常基本的思考.即使只是基本的优化,Rust能胜过手动调优过的Go版本.这非常成功的证明了用Rust编写有效率的程序是多么容易,相比Go我们需要深入研究(与我们对Go进行的深入研究相比,这充分证明了用Rust编写高效的程序是多么容易).</p>
+<p>但是我们并不满足于仅和Go的性能相同.经过一点分析和性能优化后,我们可以在每项性能指标上打败Go.在Rust版本中,延迟,CPU和内存都更好.</p>
+<p>Rust性能优化包括:<br>    1.在LRU缓存中,使用HashMap替换BTreeMap以优化内存使用.<br>    2.置换使有现代Rust并行方式的一个初始指标库.<br>    3.减少我们正在值行的内存副本数量.  </p>
+<p>我们很满意,决定上线这个服务.</p>
+<p>发布这个服务完全没有停顿,因为我们做了负载测试.我们把它放到一个canary节点上,找到并修复了一些我们没注意到的边界条件.在那之后不久我们把它放到了整个集群(entire fleet).</p>
+<p>下面是结果.<br>Go是紫色,Rust是蓝色.<br><img src="https://i.loli.net/2020/12/26/FmaNi1E9zpVcjeo.png" alt="image.png"></p>
+<h4 id="提高缓存容量"><a href="#提高缓存容量" class="headerlink" title="提高缓存容量"></a>提高缓存容量</h4><p>在服务成功地运行了数天后,我们认为是时候重新提高LRU缓存的容量了.在Go版本中,如上所述,提高LRU缓存的上限导致了更长时间的垃圾回收.我们不再需要去处理垃圾回收了,因此我们认为可以提高缓存上限获得更好的性能.我们增加了盒子(boxes)的内存容量,优化数据结构以使用更少的内存(为了好玩),并且缓存容量增长了800万个读取状态.</p>
+<p>下面的结果不言自明.注意平均时间现在是以微秒进行测量的,而最大时间是以毫秒测量.<br><img src="https://i.loli.net/2020/12/26/CwqgucZ3EaXS4np.png" alt="image.png"></p>
+<h4 id="不断发展的生态系统"><a href="#不断发展的生态系统" class="headerlink" title="不断发展的生态系统"></a>不断发展的生态系统</h4><p>最后,Rust的另一个优点是它有一个快速发展的生态系统.最近,tokio发布了0.2版本.我们升级后cpu压力更小了.从下面可以看到从16号以后CPU占用一直很低.<br><img src="https://i.loli.net/2020/12/26/fiNpCzlU53g6Tqt.png" alt="image.png"></p>
+<h4 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h4><p>此时此刻,Discord正在许多跨技术栈的地方使用Rust.我们将其用于游戏SDK,Go Live的视频捕捉和编解码,Elixir NIFS,若干后端服务等等.</p>
+<p>当启动一个新的项目或者组件时,我们考虑使用Rust.当然,我们只在有意义的地方使用它.</p>
+<p>除性能外,Rust对工程团队还有许多优势.例如,它的类型安全和borrow checker使得在产品需求变更时或发现该语言的新知识时重构代码非常容易.此外,其生态系统和工具都很非常优秀,并且有很大的发展动力.</p>
+<p>如果你已经看到这了,你可能刚对Rust产生兴趣或者已经产生了兴趣.如果你想专业地用Rust解决有趣的问题,你应该考虑在Discord工作.</p>
+<p>同时,一个有趣的事实:Rust团队使用Discord进行协作.甚至还有一个非常有用的Rust社区服务器,你可以不时看到我们在其中聊天.</p>
+
+        
+    </section>
+</article>
+
+
+
+<a id="pagenext" href="/2020/11/26/kbengine_login/" class="article-next" title="kbengine登录流程之存储登录记录"><i class="icon-arrow-right"></i></a>
+
+
+
+
+<div class="comments">
+    <div id="comments"></div>
+    <script src="https://unpkg.com/gitalk/dist/gitalk.min.js"></script>
+    <script>
+    new Gitalk({
+        clientID: "7fbe80427f54741e289f",
+        clientSecret: "f34ed5fd92e54c9000bd37ba951948cb939deff5",
+        repo: "github-yxb.github.io",
+        owner: "YuanXiaobo",
+        admin: ["YuanXiaobo"],
+        id: "430544db849381bd33b20c3c3a348ddc",
+        distractionFreeMode: true,
+        title: "Discord为什么从Go切换到Rust",
+        body: "https://github-yxb.github.io/2020/12/13/translate_discord/",
+        labels: ["翻译"]
+    }).render('comments');
+    </script>
+</div>
+
+
+
+            </div>
+        </div>
+        <footer class="footer">
+    Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>, Theme by <a href="https://github.com/sanonz/hexo-theme-concise" target="_blank">Concise</a>
+
+    
+    <script>
+        var _hmt = _hmt || [];
+        (function () {
+            var hm = document.createElement("script");
+            hm.src = "https://hm.baidu.com/hm.js?bdf4ffe8348927e73c117fd0b3a5dc51";
+            var s = document.getElementsByTagName("script")[0];
+            s.parentNode.insertBefore(hm, s);
+        })();
+    </script>
+    
+</footer>
+
+    </main>
+
+    <script type="text/javascript" src="https://unpkg.com/jquery@1.9.1/jquery.min.js"></script>
+    <script type="text/javascript">
+    $(function() {
+        var nodes = {
+            nav: $('#nav'),
+            aside: $('#aside'),
+            asideInner: $('#aside-inner'),
+            navInner: $('#nav-inner')
+        };
+
+        var doing = false;
+        nodes.asideInner.on('webkitAnimationEnd mozAnimationEnd oAnimationEnd oanimationend animationend', function() {
+            if (nodes.aside.hasClass('mobile-open')) {
+                nodes.aside.removeClass('mobile-open');
+            } else {
+                nodes.aside.removeClass('mobile-close panel-show');
+            }
+            doing = false;
+        });
+        $('#open-panel, #aside-mask').on('click', function() {
+            if (doing) {
+                return;
+            }
+
+            if (nodes.aside.hasClass('panel-show')) {
+                nodes.aside.addClass('mobile-close');
+            } else {
+                nodes.aside.addClass('mobile-open panel-show');
+            }
+        });
+        $('#open-menus').on('click', function() {
+            nodes.navInner.slideToggle('normal', slideDone);
+        });
+
+        if (window.innerWidth <= 960) {
+            setTimeout(function() {
+                nodes.navInner.slideUp('normal', slideDone);
+            }, 3000);
+        }
+
+        function slideDone() {
+            if (nodes.navInner.css('display') !== 'none') {
+                nodes.navInner.css('display', '');
+            }
+        }
+
+        $(window).on('resize', function() {
+            if ($(this).width() > 960) {
+                nodes.navInner.css('display', '');
+            }
+        });
+    });
+    </script>
+    
+        
+<script src="/js/scrollspy.min.js"></script>
+
+        <script type="text/javascript">
+        $(document.body).scrollspy({target: '#aside-inner'});
+
+        $(window).on('resize', function() {
+            var hw = $('#header').width();
+            var ww = $('#wrapper').width();
+            var space = ($(this).width() - hw - ww) / 2 / 2;
+
+            var pageprev = $('#pageprev');
+            var pagenext = $('#pagenext');
+            var avg = (pageprev.width() + pagenext.width()) / 2
+
+            if(space > avg) {
+                var len = space - avg / 2;
+                var styles = {position: 'fixed', top: '50%', marginTop: - (pageprev.width() + pagenext.width()) / 4}
+                pageprev.css($.extend({left: hw + len}, styles));
+                pagenext.css($.extend({right: len}, styles));
+            } else {
+                pageprev.removeAttr('style');
+                pagenext.removeAttr('style');
+            }
+        }).trigger('resize');
+        </script>
+    
+
+</body>
+</html>
